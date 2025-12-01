@@ -26,20 +26,35 @@ jobs:
           echo "author=$(git log -1 --pretty=%an)" >> $GITHUB_OUTPUT
           echo "sha_short=$(git log -1 --pretty=%h)" >> $GITHUB_OUTPUT
 
+      - name: Get changed files
+        id: changes
+        run: |
+          echo "files=$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }} | wc -l)" >> $GITHUB_OUTPUT
+          echo "additions=$(git show --stat ${{ github.sha }} | tail -1 | awk '{print $4}')" >> $GITHUB_OUTPUT
+          echo "deletions=$(git show --stat ${{ github.sha }} | tail -1 | awk '{print $6}')" >> $GITHUB_OUTPUT
+
       - name: Send Push Notification
         if: github.event_name == 'push'
         uses: tsickert/discord-webhook@v5.3.0
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          embed-title: "🚀 New Push to ${{ github.repository }}"
+          embed-title: "🚀 New Commit Pushed"
           embed-description: |
-            **Commit:** [${{ steps.commit.outputs.sha_short }}](${{ github.event.head_commit.url }})
-            **Message:** ${{ steps.commit.outputs.message }}
-            **Author:** ${{ steps.commit.outputs.author }}
+            **Repository:** [${{ github.repository }}](https://github.com/${{ github.repository }})
             **Branch:** `${{ github.ref_name }}`
+            
+            **📝 Commit Message:**
+            ```
+            ${{ steps.commit.outputs.message }}
+            ```
+            
+            **👤 Author:** ${{ steps.commit.outputs.author }}
+            **🔗 Commit:** [`${{ steps.commit.outputs.sha_short }}`](${{ github.event.head_commit.url }})
+            **📊 Changes:** ${{ steps.changes.outputs.files }} file(s) • +${{ steps.changes.outputs.additions }} -${{ steps.changes.outputs.deletions }}
+            **⏰ Time:** ${{ github.event.head_commit.timestamp }}
           embed-color: 3447003
           embed-url: ${{ github.event.head_commit.url }}
-          username: "lava.ts Bot"
+          username: "Lava.ts GitHub Notifications"
           avatar-url: "https://raw.githubusercontent.com/ryxu-xo/lava.ts/master/.github/assets/logo.png"
 
       - name: Send PR Notification
@@ -49,13 +64,20 @@ jobs:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           embed-title: "🔀 Pull Request ${{ github.event.action }}"
           embed-description: |
+            **Repository:** [${{ github.repository }}](https://github.com/${{ github.repository }})
             **PR:** [#${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}](${{ github.event.pull_request.html_url }})
-            **Author:** ${{ github.event.pull_request.user.login }}
-            **Status:** ${{ github.event.action }}
-            **Base:** `${{ github.event.pull_request.base.ref }}` ← **Head:** `${{ github.event.pull_request.head.ref }}`
+            
+            **👤 Author:** ${{ github.event.pull_request.user.login }}
+            **📊 Status:** ${{ github.event.action }}
+            **🌿 Base:** `${{ github.event.pull_request.base.ref }}` ← **Head:** `${{ github.event.pull_request.head.ref }}`
+            **📝 Changed Files:** ${{ github.event.pull_request.changed_files }}
+            **➕ Additions:** ${{ github.event.pull_request.additions }} | **➖ Deletions:** ${{ github.event.pull_request.deletions }}
+            **💬 Comments:** ${{ github.event.pull_request.comments }}
+            
+            ${{ github.event.pull_request.body }}
           embed-color: 16776960
           embed-url: ${{ github.event.pull_request.html_url }}
-          username: "lava.ts Bot"
+          username: "Lava.ts GitHub Notifications"
           avatar-url: "https://raw.githubusercontent.com/ryxu-xo/lava.ts/master/.github/assets/logo.png"
 
       - name: Send Release Notification
@@ -63,16 +85,25 @@ jobs:
         uses: tsickert/discord-webhook@v5.3.0
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          embed-title: "🎉 New Release: ${{ github.event.release.tag_name }}"
+          embed-title: "🎉 New Release Published"
           embed-description: |
-            **${{ github.event.release.name }}**
+            **Repository:** [${{ github.repository }}](https://github.com/${{ github.repository }})
+            **Version:** `${{ github.event.release.tag_name }}`
+            **Name:** ${{ github.event.release.name }}
             
+            **👤 Author:** ${{ github.event.release.author.login }}
+            **📅 Published:** ${{ github.event.release.published_at }}
+            **🏷️ Tag:** `${{ github.event.release.tag_name }}`
+            **🌿 Target:** `${{ github.event.release.target_commitish }}`
+            **📦 Prerelease:** ${{ github.event.release.prerelease }}
+            
+            **📝 Release Notes:**
             ${{ github.event.release.body }}
             
-            [View Release](${{ github.event.release.html_url }})
+            [📥 Download Release](${{ github.event.release.html_url }})
           embed-color: 5763719
           embed-url: ${{ github.event.release.html_url }}
-          username: "lava.ts Bot"
+          username: "Lava.ts GitHub Notifications"
           avatar-url: "https://raw.githubusercontent.com/ryxu-xo/lava.ts/master/.github/assets/logo.png"
 
       - name: Send Issue Notification
@@ -82,12 +113,20 @@ jobs:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           embed-title: "🐛 Issue ${{ github.event.action }}"
           embed-description: |
+            **Repository:** [${{ github.repository }}](https://github.com/${{ github.repository }})
             **Issue:** [#${{ github.event.issue.number }} - ${{ github.event.issue.title }}](${{ github.event.issue.html_url }})
-            **Author:** ${{ github.event.issue.user.login }}
-            **Status:** ${{ github.event.action }}
             
+            **👤 Author:** ${{ github.event.issue.user.login }}
+            **📊 Status:** ${{ github.event.action }}
+            **🏷️ Labels:** ${{ join(github.event.issue.labels.*.name, ', ') }}
+            **💬 Comments:** ${{ github.event.issue.comments }}
+            **📅 Created:** ${{ github.event.issue.created_at }}
+            
+            **📝 Description:**
             ${{ github.event.issue.body }}
+            
+            [View Issue](${{ github.event.issue.html_url }})
           embed-color: 15158332
           embed-url: ${{ github.event.issue.html_url }}
-          username: "lava.ts Bot"
+          username: "Lava.ts GitHub Notifications"
           avatar-url: "https://raw.githubusercontent.com/ryxu-xo/lava.ts/master/.github/assets/logo.png"
