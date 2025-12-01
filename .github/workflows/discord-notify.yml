@@ -1,0 +1,93 @@
+name: Discord Notifications
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    types: [opened, closed, reopened]
+  release:
+    types: [published]
+  issues:
+    types: [opened, closed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Get commit info
+        id: commit
+        run: |
+          echo "message=$(git log -1 --pretty=%B | head -n1)" >> $GITHUB_OUTPUT
+          echo "author=$(git log -1 --pretty=%an)" >> $GITHUB_OUTPUT
+          echo "sha_short=$(git log -1 --pretty=%h)" >> $GITHUB_OUTPUT
+
+      - name: Send Push Notification
+        if: github.event_name == 'push'
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          embed-title: "🚀 New Push to ${{ github.repository }}"
+          embed-description: |
+            **Commit:** [${{ steps.commit.outputs.sha_short }}](${{ github.event.head_commit.url }})
+            **Message:** ${{ steps.commit.outputs.message }}
+            **Author:** ${{ steps.commit.outputs.author }}
+            **Branch:** `${{ github.ref_name }}`
+          embed-color: 3447003
+          embed-url: ${{ github.event.head_commit.url }}
+          username: "lava.ts Bot"
+          avatar-url: "https://raw.githubusercontent.com/ryxu-xo/lava.ts/master/.github/assets/logo.png"
+
+      - name: Send PR Notification
+        if: github.event_name == 'pull_request'
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          embed-title: "🔀 Pull Request ${{ github.event.action }}"
+          embed-description: |
+            **PR:** [#${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}](${{ github.event.pull_request.html_url }})
+            **Author:** ${{ github.event.pull_request.user.login }}
+            **Status:** ${{ github.event.action }}
+            **Base:** `${{ github.event.pull_request.base.ref }}` ← **Head:** `${{ github.event.pull_request.head.ref }}`
+          embed-color: 16776960
+          embed-url: ${{ github.event.pull_request.html_url }}
+          username: "lava.ts Bot"
+          avatar-url: "https://raw.githubusercontent.com/ryxu-xo/lava.ts/master/.github/assets/logo.png"
+
+      - name: Send Release Notification
+        if: github.event_name == 'release'
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          embed-title: "🎉 New Release: ${{ github.event.release.tag_name }}"
+          embed-description: |
+            **${{ github.event.release.name }}**
+            
+            ${{ github.event.release.body }}
+            
+            [View Release](${{ github.event.release.html_url }})
+          embed-color: 5763719
+          embed-url: ${{ github.event.release.html_url }}
+          username: "lava.ts Bot"
+          avatar-url: "https://raw.githubusercontent.com/ryxu-xo/lava.ts/master/.github/assets/logo.png"
+
+      - name: Send Issue Notification
+        if: github.event_name == 'issues'
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          embed-title: "🐛 Issue ${{ github.event.action }}"
+          embed-description: |
+            **Issue:** [#${{ github.event.issue.number }} - ${{ github.event.issue.title }}](${{ github.event.issue.html_url }})
+            **Author:** ${{ github.event.issue.user.login }}
+            **Status:** ${{ github.event.action }}
+            
+            ${{ github.event.issue.body }}
+          embed-color: 15158332
+          embed-url: ${{ github.event.issue.html_url }}
+          username: "lava.ts Bot"
+          avatar-url: "https://raw.githubusercontent.com/ryxu-xo/lava.ts/master/.github/assets/logo.png"
